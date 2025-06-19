@@ -1,0 +1,56 @@
+permissions:
+  contents: write
+
+on:
+  push:
+      tags:
+        - 'v*'
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.event.release.tag_name }}
+          draft: false
+          prerelease: false
+
+  upload_assets:
+    needs: create_release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          # - os: windows-latest
+          #   target: x86_64-pc-windows-gnu
+          # - os: macos-latest
+          #   target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install musl-tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Rename binary for release
+        run: |
+          ext=""
+          if [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
+            ext=".exe"
+          fi
+          cp target/${{ matrix.target }}/release/update-test target/${{ matrix.target }}/release/update-test-${{ matrix.target }}$ext
+      - name: Upload Binary
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/${{ matrix.target }}/release/update-test-${{ matrix.target }}${{ matrix.target == 'x86_64-pc-windows-gnu' && '.exe' || '' }}
+          name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ github.ref_name }}

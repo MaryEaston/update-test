@@ -1,0 +1,10 @@
+[package]
+name = "update-test"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
+reqwest = "0.12.20"
+self_update = "0.42.0"
+tempfile = "3.20.0"
